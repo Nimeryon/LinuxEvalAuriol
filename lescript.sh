@@ -2,46 +2,45 @@
 
 # Est ce que in pas dans la liste de /tmp/
 # Alors créer in/
-if ! ls /tmp/ | grep in 1> /dev/null
+if ! [ -d /tmp/in/ ]
   then
-  cd /tmp/ ; mkdir in
+  mkdir /tmp/in
 fi
 
 # Est ce que out pas dans la liste de /tmp/
 # Alors créer out/
-if ! ls /tmp/ | grep out 1> /dev/null
+if ! [ -d /tmp/out/ ]
   then
-  cd /tmp/ ; mkdir out
+  mkdir /tmp/out
 fi
 
-if ! ls /tmp/out/ | grep lock 1> /dev/null
+if ! [ -e /tmp/out/lock ]
   then
   # Création du fichier lock temporaire
-  cd /tmp/out/ ; echo "locked" > lock
+  touch /tmp/out/lock
+  # Ajout de la date dans le log
+  date >> /tmp/out/log
 
   if ! [ "$(ls -A /tmp/in/)" ]
     then
-    date >> /tmp/out/log
     echo "Erreur : aucun fichier n'as était trouvé dans /tmp/in/" >> /tmp/out/log  
-    echo "Erreur : aucun fichier n'as était trouvé dans /tmp/in/"
+    rm /tmp/out/lock
     exit 2
   fi
-
-  # Ajout dans le log
-  date >> /tmp/out/log
-  ls -A /tmp/in/* >> /tmp/out/log
-
-  if ! (gzip -r /tmp/in/* ; mv /tmp/in/* /tmp/out/ 2> /dev/null)
-    then
-    echo "Un problême est survenue lors de la compréssion ou du transfert" >> /tmp/out/log
-    echo "Un problème est survenue lors de la compréssion ou du transfert"
-    exit 2
-  fi
-
-  echo "Les dossier de /tmp/in/ ont étais compréssé puis envoyé dans /tmp/out/tmpIn.gz"
+  
+  for fichier in $(ls /tmp/in/)
+    do
+    if gzip /tmp/in/$fichier 2> /dev/null 
+      then
+      mv /tmp/in/$fichier.gz /tmp/out/
+      echo "Le fichier $fichier à étais compréssé et envoyé dans le dossier /tmp/out/" >> /tmp/out/log
+    else
+      echo "Une erreur est survenue avec le fichier $fichier" >> /tmp/out/log
+    fi
+  done
   
   # Suppréssion du fichier lock temporaire
-  cd /tmp/out/ ; rm lock
+  rm /tmp/out/lock
   exit 0
 else
   echo "Le fichier /tmp/out/ est lock"
